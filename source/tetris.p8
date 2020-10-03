@@ -14,25 +14,55 @@ function _init()
   lines = 0
   spd   = 30-(level*2)
   brd = {}
-  for x=1, 200 do
+  rot = 0 //piece rotation
+  for x=1, 220 do
     brd[x]=0
   end
 
-		//add all pieces
-  add(ps,split("1".. //t.shape
-               ",20,21,22,31,"..
+		//add all pieces. each piece
+		//has 4 rotations
+  add(ps,split("1,".. //t.shape
+               "20,21,22,31,"..
                "11,20,21,31,"..
                "11,20,21,22,"..
                "11,21,22,31"
                ,","))
-  add(ps,split("2".. //b.el
-               ",20,21,22,32,"
+  add(ps,split("2,".. //b.el
+               "20,21,22,32,"..
+               "11,21,30,31,"..
+               "10,20,21,22,"..
+               "11,12,21,31"
                ,","))
-  add(ps,split("3,20,21,31,32",","))
-  add(ps,split("1,20,21,31,32",","))
-  add(ps,split("2,21,22,30,31",","))
-  add(ps,split("3,20,21,22,30",","))
-  add(ps,split("1,20,21,22,23",","))
+  add(ps,split("3,".. // z
+               "20,21,31,32,"..
+               "11,20,21,30,"..
+               "20,21,31,32,"..
+               "11,20,21,30"
+               ,","))
+  add(ps,split("1,".. //square
+               "20,21,30,31,"..
+               "20,21,30,31,"..
+               "20,21,30,31,"..
+               "20,21,30,31"
+               ,","))
+  add(ps,split("2,".. //b.z
+               "21,22,30,31,"..
+               "11,21,22,32,"..
+               "21,22,30,31,"..
+               "11,21,22,32"
+               ,","))
+  add(ps,split("3,".. //el
+               "20,21,22,30,"..
+               "11,21,31,32,"..
+               "20,21,22,12,"..
+               "10,11,21,31"
+               ,","))
+  add(ps,split("1,"..
+               "20,21,22,23,"..
+               "01,11,21,31,"..
+               "20,21,22,23,"..
+               "01,11,21,31"
+               ,","))
   pc  = rnd(ps)
   px  = 3
   py  = 0
@@ -63,26 +93,28 @@ function game_draw()
   if(timer == 0) then
     py = py+1
   end
+  //piece hit ground
   if(py > 19) then
     pc=nxt
     nxt=rnd(ps)
+    rot = 0
     px  = 3
     py  = 0
   end
   //draw board pieces
-  for j=1,22 do
+  for j=3,21 do
     for i=1,10 do
-      pos=brd[i*10+j]
+      pos=brd[j*10+i]
       if(pos!=0) then
-      spr(pos,
-      bx+((i-1)*6),
-      by+(j-1)*6)
+        spr(pos,
+            bx+((i-1)*6),
+            by+(j-2)*6)
       end
     end
   end
   //draw current piece
   put_piece(pc,bx+px*6,
-            by+py*6,small)
+            by+py*6,small,rot)
 end
 
 function draw_board()
@@ -96,7 +128,7 @@ function draw_board()
   print(" next",99,63,7)
   nx = 5
   ny = 16
-  put_piece(nxt,99,70,false)
+  put_piece(nxt,99,70,false,0)
 
   //print lines
   draw_rect(96,10,24,16)
@@ -119,14 +151,14 @@ function draw_board()
   draw_rect(0,39,31,67)
   x = 3 y = 50
   for p in all(ps) do
-    put_piece(p,x,y,true)
+    put_piece(p,x,y,true,0)
     print("000",x+14,y,5)
     y = y + 8
   end
 end
 
 //print tetris piece
-function put_piece(p,x,y,small)
+function put_piece(p,x,y,small,r)
   for i=2,5 do
     s=p[1] --get sprite
     off=6  --offset
@@ -134,8 +166,10 @@ function put_piece(p,x,y,small)
       s=p[1]+16
       off=3
     end
-    posx = (p[i]%10)*off+x
-    posy = ((p[i]-20)\10)*off+y
+    posx = (p[(r*4)+i]%10)*
+            off+x
+    posy = ((p[r*4+i]-20)\10)
+            *off+y
     spr(s,posx,posy)
   end
 end
@@ -150,30 +184,60 @@ function draw_rect(x,y,w,h)
 end
 
 function btn_press()
+  btn_lr()
+  btn_❎🅾️()
+  btn_d()
+end
+
+function btn_d()
+  touch = false
+  m=false
+  if(btnp(⬇️)) then
+    timer=1
+    ty = py+1
+    m=true
+  end
+  if(m) then
+    if(tch_grnd(ty,rot)==false) then
+      py=ty
+    end
+  end
+end
+
+function btn_❎🅾️()
+  er = false
+  tr = rot
+  if(btnp(❎)) then
+    tr=rot+1
+  end
+  if(btnp(🅾️)) then
+    tr=rot-1
+  end
+  if(tr<0) then tr=3 end
+  if(tr>3) then tr=0 end
+  if(wall_coll(px,tr)) then
+    er=true
+  end
+  if(er==false) then
+    rot=tr
+  end
+end
+
+function btn_lr()
   tx=px
   er=false
   m=false //didn't move yet
   if(btnp(⬅️)) then
     m=true
     tx=px-1
-    if(tx<0) then er=true end
   end
   if(btnp(➡️)) then
     m=true
     tx=px+1
-    if(tx>9) then er=true end
   end
   if m then
-    for x=2,5 do
-      if(pc[x]+tx<0) then
-        er=true
-      end
-      if(pc[x]%10+tx>9) then
-        er=true
-      end
-      if collision(tx) then
-        er=true
-      end
+    if wall_coll(tx,rot) then
+      er=true
     end
   end
   if(er==false) then
@@ -181,7 +245,33 @@ function btn_press()
   end
 end
 
-function collision(x)
+//wall collision
+function wall_coll(tx,r)
+  ret = false
+  for x=2,5 do
+    if(pc[r*4+x]%10+tx<0) then
+      ret=true
+    end
+    if(pc[r*4+x]%10+tx>9) then
+      ret=true
+    end
+  end
+  return ret
+end
+
+//did block touch ground
+function tch_grnd(ty)
+  r=rot
+  for i=2,5 do
+    x=(pc[r*4+i]%10)+px
+    y=(pc[r*4+i]\10)+py+1
+    if(y*10+x>220) then
+      return true
+    end
+    if(brd[y*10+x]~=0) then
+      return true
+    end
+  end
   return false
 end
 __gfx__
@@ -194,7 +284,7 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000061100000611000006cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000001710000011100000c7c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000001710000011100000ccc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000001110000011100000ccc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 11111111111111111111111111111110111111111111111111111111111111111111111111111111111111111111111011111111111111111111111111111111
